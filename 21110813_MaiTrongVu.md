@@ -24,6 +24,7 @@ Setup a set of vms/containers in a network configuration of 2 subnets (1,2) with
 4. Web Server Configuration:
 
 - Install and configure a web server (e.g., Apache or Nginx) on PC0:
+
 ` sudo apt update && sudo apt install apache2 -y
   echo "Welcome to the web server!" | sudo tee /var/www/html/index.html
   sudo systemctl start apache2 `
@@ -36,16 +37,21 @@ Setup a set of vms/containers in a network configuration of 2 subnets (1,2) with
 1. Enable Packet Forwarding:
 
 - On the router, enable IP forwarding to allow traffic between subnets:
+
 `echo 1 > /proc/sys/net/ipv4/ip_forward`
 - Add IP forwarding permanently by editing `/etc/sysctl.conf`:
+  
 `net.ipv4.ip_forward = 1`
 - Then reload sysctl settings:
+
 `sudo sysctl -p`
 2. Deface the Web Server:
   
 - From PC1, connect to the web server on PC0 using SSH:
+
 `ssh user@192.168.1.10`
 - Edit the web server’s homepage:
+
 `echo "Hacked by PC1!" | sudo tee /var/www/html/index.html`
 - Verify the defacement by accessing `http://192.168.1.10` from PC2 or any other host.
 
@@ -55,11 +61,14 @@ Setup a set of vms/containers in a network configuration of 2 subnets (1,2) with
 **Answer 3**:
 1. Router Firewall Rules:
 - Use `iptables` on the router to block SSH traffic from PC1:
+
 `sudo iptables -A FORWARD -p tcp --dport 22 -s 192.168.2.10 -d 192.168.1.10 -j DROP`
 - Allow all other traffic:
+
 `sudo iptables -A FORWARD -d 192.168.1.10 -p tcp --dport 22 -j ACCEPT
  sudo iptables -A FORWARD -d 192.168.1.10 -p tcp --dport 80 -j ACCEPT`
 - Verify the rules:
+
 `sudo iptables -L -v`
 
 **Question 4**:
@@ -69,9 +78,11 @@ Setup a set of vms/containers in a network configuration of 2 subnets (1,2) with
 **Answer 4**:
 1. Configure PC1 as a UDP Server:
 - Run a simple UDP server on PC1:
+
 `sudo apt install netcat -y
  nc -u -l 12345`
 - Ensure it can respond to UDP ping:
+
 `sudo apt install iputils-arping
  arping -I eth0 192.168.2.10`
 
@@ -79,12 +90,14 @@ Setup a set of vms/containers in a network configuration of 2 subnets (1,2) with
 - Ensure the router forwards UDP packets between subnets.
 
 3. Personal Firewall on PC1:
-
 - Block UDP access from PC2:
+
 `sudo iptables -A INPUT -p udp --dport 12345 -s 192.168.2.11 -j DROP`
 - Allow UDP access from Subnet 1:
+
 `sudo iptables -A INPUT -p udp --dport 12345 -s 192.168.1.0/24 -j ACCEPT`
 - Verify rules:
+
 `sudo iptables -L -v`
 
 # Task 2: Encrypting large message 
@@ -99,21 +112,27 @@ Encrypt the file with aes-cipher in CTR and OFB modes. How do you evaluate both 
 
 1. Encrypt the file using AES in CTR and OFB modes:
 - Create a file with at least 56 bytes on PC2:
+
 `echo "This is a sample file with more than fifty-six bytes of content for testing." > file.txt`
 - Encrypt the file in CTR mode:
+
 `openssl enc -aes-256-ctr -in file.txt -out file_ctr.enc -K <256-bit-key> -iv <128-bit-IV>`
 - Encrypt the file in OFB mode:
+
 `openssl enc -aes-256-ofb -in file.txt -out file_ofb.enc -K <256-bit-key> -iv <128-bit-IV>`
 
 2. Send the file to PC0 with message authentication:
 - Generate a Message Authentication Code (MAC) using HMAC:
+
 `openssl dgst -sha256 -hmac <shared-key> -out file_ctr.mac file_ctr.enc
  openssl dgst -sha256 -hmac <shared-key> -out file_ofb.mac file_ofb.enc`
 - Send the encrypted files and MAC to PC0:
+
 `scp file_ctr.enc file_ctr.mac file_ofb.enc file_ofb.mac user@PC0:/destination/directory`
 
 3. Verify received files on PC0:
 - Check integrity using HMAC:
+
 `openssl dgst -sha256 -hmac <shared-key> -verify file_ctr.mac file_ctr.enc
  openssl dgst -sha256 -hmac <shared-key> -verify file_ofb.mac file_ofb.enc`
 
@@ -124,11 +143,13 @@ Encrypt the file with aes-cipher in CTR and OFB modes. How do you evaluate both 
 **Answer 2**:
 1. Simulate corruption:
 - Corrupt the 6th bit of the ciphered file:
+
 `xxd file_ctr.enc > file_ctr.hex
  sed -i 's/^.\{6\}/<altered-byte>/g' file_ctr.hex
  xxd -r file_ctr.hex > file_ctr_corrupted.enc`
 2. Verify corrupted files on PC0:
 - Verify integrity of the corrupted files using HMAC:
+
 `openssl dgst -sha256 -hmac <shared-key> -verify file_ctr.mac file_ctr_corrupted.enc`
 - HMAC verification will fail, indicating tampering in the encrypted file.
 
@@ -139,8 +160,10 @@ Encrypt the file with aes-cipher in CTR and OFB modes. How do you evaluate both 
 **Answer 3**:
 1. Decrypt corrupted files on PC0:
 - Decrypt the corrupted file in CTR mode:
+
 `openssl enc -d -aes-256-ctr -in file_ctr_corrupted.enc -out file_ctr_corrupted.txt -K <256-bit-key> -iv <128-bit-IV>`
 - Decrypt the corrupted file in OFB mode:
+
 `openssl enc -d -aes-256-ofb -in file_ofb_corrupted.enc -out file_ofb_corrupted.txt -K <256-bit-key> -iv <128-bit-IV>`
 
 2. Comment on error propagation and adjacent plaintext blocks:
